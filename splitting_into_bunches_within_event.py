@@ -115,6 +115,7 @@ def get_request_input(matrix: List[Metadata]) -> List[RequestInput]:
         events[event]["avg"] = avg
 
     processed_entities = {}
+    small_events = {}
     # start processing
     for event, dates in events.items():
         # process all records where count is about 50000 since adding new date of the same event will likely cause
@@ -138,7 +139,30 @@ def get_request_input(matrix: List[Metadata]) -> List[RequestInput]:
                 if event not in processed_entities:
                     processed_entities[event] = []
                 processed_entities[event].append(date)
+        sum_event = 0
+        # process small counting amount for all range of dates
+        if 0 < dates["avg"] <= 1000:
+            for date, count in dates.items():
+                if date != "avg":
+                    sum_event += count
+            small_events[event] = sum_event
 
+    # process small events
+    result_sum = 0
+    result_events = []
+    for event, sum_count in small_events.items():
+        result_sum += sum_count
+        result_events.append(event)
+        if result_sum > 100000:
+            result.append(RequestInput(from_day='2024-08-01',
+                                       to_day='2024-08-31',
+                                       event_type=result_events[:-1]))
+            result_sum = sum_count
+            result_events = [event]
+        # delete item in order to not be processed by further steps
+        events.pop(event)
+
+    # delete items in order to not be processed by further steps
     for event, dates in processed_entities.items():
         for date in dates:
             events[event].pop(date)
